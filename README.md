@@ -15,6 +15,7 @@ Configuration File
 
 This program uses a configuration file located at ~/.dbox.
 The format is the following:
+
 	{
 	 "token": "OAuth2 authentication token",
 	 "key": "key_generated_for_encrypting_and_decrypting_files"
