@@ -40,9 +40,9 @@ import (
 	"github.com/stacktic/dropbox"
 )
 
-const APP_KEY = ""
-const APP_SECRET = ""
-const CONFIG_FILENAME = ".dbox"
+const AppKey = ""
+const AppSecret = ""
+const ConfigFilename = ".dbox"
 
 type ConfigFile struct {
 	Token   string `json:"token"`
@@ -163,7 +163,7 @@ func doChunkedPut(config *ConfigFile, db *dropbox.Dropbox, params []string) erro
 
 	cl = flag.NewFlagSet("cput", flag.ExitOnError)
 	cl.BoolVar(&crypt, "aes", false, "Crypt file with AES before sending them.")
-	cl.IntVar(&chunksize, "c", dropbox.DEFAULT_CHUNK_SIZE, "Size of the chunk")
+	cl.IntVar(&chunksize, "c", dropbox.DefaultChunkSize, "Size of the chunk")
 	cl.BoolVar(&keep, "k", false, "Do not overwrite if exists.")
 	cl.StringVar(&rev, "r", "", "Revision of the file overwritten.")
 	cl.Parse(params)
@@ -640,15 +640,15 @@ func main() {
 	Commands["help"] = Command{"Show this help message", "", doHelp}
 
 	db = dropbox.NewDropbox()
-	_ = config.Read(CONFIG_FILENAME)
-	db.SetAppInfo(APP_KEY, APP_SECRET)
+	_ = config.Read(ConfigFilename)
+	db.SetAppInfo(AppKey, AppSecret)
 	if len(config.Token) == 0 {
 		if err = db.Auth(); err != nil {
 			fmt.Println(err)
 			return
 		}
 		config.Token = db.AccessToken()
-		config.Write(CONFIG_FILENAME)
+		config.Write(ConfigFilename)
 	} else {
 		db.SetAccessToken(config.Token)
 	}
@@ -661,6 +661,6 @@ func main() {
 		usage(os.Args[0])
 	}
 	if config.changed {
-		config.Write(CONFIG_FILENAME)
+		config.Write(ConfigFilename)
 	}
 }
