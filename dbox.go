@@ -40,35 +40,38 @@ import (
 	"github.com/stacktic/dropbox"
 )
 
-const AppKey = ""
-const AppSecret = ""
-const ConfigFilename = ".dbox"
+const appKey = ""
+const appSecret = ""
+const configFilename = ".dbox"
 
+// ConfigFile represents the structure of the configuration file.
 type ConfigFile struct {
 	Token   string `json:"token"`
 	Key     []byte `json:"key"`
 	changed bool   `json:"-"`
 }
 
-func (self *ConfigFile) Read(fname string) error {
+// Read reads the named configuration file.
+func (cf *ConfigFile) Read(fname string) error {
 	var err error
 	var file string
 	var buf []byte
 
 	file = filepath.Join(os.Getenv("HOME"), fname)
 	if buf, err = ioutil.ReadFile(file); err == nil {
-		err = json.Unmarshal(buf, self)
+		err = json.Unmarshal(buf, cf)
 	}
 	return err
 }
 
-func (self *ConfigFile) Write(fname string) error {
+// Write writes the named configuration file.
+func (cf *ConfigFile) Write(fname string) error {
 	var err error
 	var file string
 	var buf []byte
 
 	file = filepath.Join(os.Getenv("HOME"), fname)
-	if buf, err = json.MarshalIndent(self, "", " "); err == nil {
+	if buf, err = json.MarshalIndent(cf, "", " "); err == nil {
 		err = ioutil.WriteFile(file, buf, 0600)
 	}
 	return err
@@ -76,7 +79,7 @@ func (self *ConfigFile) Write(fname string) error {
 
 type cmdHandler func(*ConfigFile, *dropbox.Dropbox, []string) error
 
-func PrintEntry(entry *dropbox.Entry, prefixlen int) {
+func printEntry(entry *dropbox.Entry, prefixlen int) {
 	var buffer bytes.Buffer
 
 	if prefixlen != 0 {
@@ -96,7 +99,7 @@ func PrintEntry(entry *dropbox.Entry, prefixlen int) {
 	fmt.Println(buffer.String())
 }
 
-func PrintEntryLong(entry *dropbox.Entry, prefixlen int) {
+func printEntryLong(entry *dropbox.Entry, prefixlen int) {
 	var buffer bytes.Buffer
 
 	if prefixlen != 0 && entry.Path[prefixlen] == '/' {
@@ -113,7 +116,7 @@ func PrintEntryLong(entry *dropbox.Entry, prefixlen int) {
 	fmt.Println(buffer.String())
 }
 
-func PrintEntriesLong(entries []dropbox.Entry, prefixlen int) {
+func printEntriesLong(entries []dropbox.Entry, prefixlen int) {
 	var psize, ssize, msize, rsize int
 	var i int
 	var buffer bytes.Buffer
@@ -121,7 +124,7 @@ func PrintEntriesLong(entries []dropbox.Entry, prefixlen int) {
 	if prefixlen != 0 && entries[0].Path[prefixlen] == '/' {
 		prefixlen++
 	}
-	for i, _ = range entries {
+	for i = range entries {
 		if len(entries[i].Path) > psize {
 			psize = len(entries[i].Path)
 		}
@@ -136,7 +139,7 @@ func PrintEntriesLong(entries []dropbox.Entry, prefixlen int) {
 		}
 	}
 	psize = psize + 1 - prefixlen
-	for i, _ = range entries {
+	for i = range entries {
 		name := entries[i].Path[prefixlen:]
 		if entries[i].IsDir {
 			name += "/"
@@ -160,6 +163,7 @@ func doChunkedPut(config *ConfigFile, db *dropbox.Dropbox, params []string) erro
 	var chunksize int
 	var fsize int
 	var reader io.ReadCloser
+	var fi os.FileInfo
 
 	cl = flag.NewFlagSet("cput", flag.ExitOnError)
 	cl.BoolVar(&crypt, "aes", false, "Crypt file with AES before sending them.")
@@ -176,7 +180,7 @@ func doChunkedPut(config *ConfigFile, db *dropbox.Dropbox, params []string) erro
 	defer fd.Close()
 
 	if len(files) != 2 {
-		return fmt.Errorf("Exactly two parameters needed for put (source and destination)")
+		return fmt.Errorf("exactly two parameters needed for put (source and destination)")
 	}
 
 	if crypt {
@@ -184,11 +188,10 @@ func doChunkedPut(config *ConfigFile, db *dropbox.Dropbox, params []string) erro
 			config.Key, _ = dropbox.GenerateKey(32)
 			config.changed = true
 		}
-		if fi, err := fd.Stat(); err != nil {
+		if fi, err = fd.Stat(); err != nil {
 			return err
-		} else {
-			fsize = int(fi.Size())
 		}
+		fsize = int(fi.Size())
 		if reader, _, err = dropbox.NewAESCrypterReader(config.Key, fd, fsize); err != nil {
 			return err
 		}
@@ -213,7 +216,7 @@ func doCopy(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 	cl.Parse(params)
 	params = cl.Args()
 	if len(params) != 2 {
-		return fmt.Errorf("Exactly two parameters needed for move (from path and to path)")
+		return fmt.Errorf("exactly two parameters needed for move (from path and to path)")
 	}
 
 	_, err = db.Copy(params[0], params[1], copyref)
@@ -278,7 +281,7 @@ func doGet(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 		return fmt.Errorf("-aes and -c are mutually exclusive")
 	}
 	if len(files) != 2 {
-		return fmt.Errorf("Exactly two parameters needed for get (source and destination)")
+		return fmt.Errorf("exactly two parameters needed for get (source and destination)")
 	}
 
 	if crypt {
@@ -318,9 +321,9 @@ func doList(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 	cl.Parse(params)
 
 	if long {
-		display = PrintEntryLong
+		display = printEntryLong
 	} else {
-		display = PrintEntry
+		display = printEntry
 	}
 
 	files = cl.Args()
@@ -337,10 +340,10 @@ func doList(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 			}
 			fmt.Println("")
 			if long {
-				PrintEntriesLong(entry.Contents, len(file))
+				printEntriesLong(entry.Contents, len(file))
 			} else {
 				for _, subentry = range entry.Contents {
-					PrintEntry(&subentry, len(file))
+					printEntry(&subentry, len(file))
 				}
 			}
 		} else {
@@ -364,7 +367,7 @@ func doLongPollDelta(config *ConfigFile, db *dropbox.Dropbox, params []string) e
 	cl.Parse(params)
 	params = cl.Args()
 	if len(params) != 1 {
-		return fmt.Errorf("Exactly one parameter needed for ldelta (cursor)")
+		return fmt.Errorf("exactly one parameter needed for ldelta (cursor)")
 	}
 	if dp, err = db.LongPollDelta(params[0], timeout); err != nil {
 		return err
@@ -408,7 +411,7 @@ func doMove(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 	var err error
 
 	if len(params) != 2 {
-		return fmt.Errorf("Exactly two parameters needed for move (from path and to path)")
+		return fmt.Errorf("exactly two parameters needed for move (from path and to path)")
 	}
 
 	_, err = db.Move(params[0], params[1])
@@ -430,7 +433,7 @@ func doPut(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 	files = cl.Args()
 
 	if len(files) != 2 {
-		return fmt.Errorf("Exactly two parameters needed for put (source and destination)")
+		return fmt.Errorf("exactly two parameters needed for put (source and destination)")
 	}
 
 	if crypt && len(config.Key) == 0 {
@@ -455,7 +458,7 @@ func doRestore(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 	var err error
 
 	if len(params) != 2 {
-		return fmt.Errorf("Exactly two parameters needed for restore (path and revision)")
+		return fmt.Errorf("exactly two parameters needed for restore (path and revision)")
 	}
 
 	_, err = db.Restore(params[0], params[1])
@@ -480,7 +483,7 @@ func doRevisions(config *ConfigFile, db *dropbox.Dropbox, params []string) error
 		}
 		for _, entry = range *entries {
 			if !entry.IsDeleted || entry.Bytes != 0 {
-				PrintEntryLong(&entry, 0)
+				printEntryLong(&entry, 0)
 			}
 		}
 	}
@@ -515,7 +518,7 @@ func doSearch(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 	params = cl.Args()
 
 	if len(params) != 2 {
-		return fmt.Errorf("Exactly two parameters needed for search (path and query)")
+		return fmt.Errorf("exactly two parameters needed for search (path and query)")
 	}
 
 	if entries, err = db.Search(strings.TrimRight(params[0], "/"), params[1], nb, all); err != nil {
@@ -523,10 +526,10 @@ func doSearch(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 	}
 	fmt.Printf("%s:\n", params[0])
 	if long {
-		PrintEntriesLong(*entries, len(params[0]))
+		printEntriesLong(*entries, len(params[0]))
 	} else {
 		for _, entry = range *entries {
-			PrintEntry(&entry, len(params[0]))
+			printEntry(&entry, len(params[0]))
 		}
 	}
 	return nil
@@ -566,7 +569,7 @@ func doThumbnails(config *ConfigFile, db *dropbox.Dropbox, params []string) erro
 	params = cl.Args()
 
 	if len(params) != 2 {
-		return fmt.Errorf("Exactly two parameters needed for thumbnails (source and destination)")
+		return fmt.Errorf("exactly two parameters needed for thumbnails (source and destination)")
 	}
 
 	_, err = db.ThumbnailsToFile(params[0], params[1], format, size)
@@ -579,8 +582,8 @@ func doThumbnails(config *ConfigFile, db *dropbox.Dropbox, params []string) erro
 }
 
 func doHelp(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
-	keys := make([]string, 0, len(Commands))
-	for k := range Commands {
+	keys := make([]string, 0, len(commands))
+	for k := range commands {
 		if k != "help" {
 			keys = append(keys, k)
 		}
@@ -589,37 +592,37 @@ func doHelp(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 
 	fmt.Printf("Command list:\n")
 	for _, k := range keys {
-		fmt.Printf("%10s: %s\n", k, Commands[k].desc)
-		fmt.Printf("            Usage: %s %s\n", k, Commands[k].usage)
+		fmt.Printf("%10s: %s\n", k, commands[k].desc)
+		fmt.Printf("            Usage: %s %s\n", k, commands[k].usage)
 	}
-	fmt.Printf("%10s: %s\n", "help", Commands["help"].desc)
+	fmt.Printf("%10s: %s\n", "help", commands["help"].desc)
 	return nil
 }
 
-type Command struct {
+type command struct {
 	desc  string
 	usage string
 	Func  cmdHandler
 }
 
-var Commands = map[string]Command{
-	"copy":       Command{"Copy file or directory.", "[-r] from_file to_file", doCopy},
-	"copyref":    Command{"Get a copy reference of a file.", "file [files...]", doCopyRef},
-	"cput":       Command{"Upload a file.", "[-aes] [-c chunksize] [-k] [-r rev] file destination", doChunkedPut},
-	"delta":      Command{"Get modifications.", "[-c cursor] [-p path_prefix]", doDelta},
-	"delete":     Command{"Remove file or directory (Warning this remove is recursive).", "file [files...]", doRm},
-	"get":        Command{"Download a file.", "[-aes] [-c] [-r rev] file destination", doGet},
-	"list":       Command{"List files from directories.", "[-a] [-d] [-l] file [files...]", doList},
-	"ldelta":     Command{"Get modifications with timeout.", "[-t timeout] cursor", doLongPollDelta},
-	"media":      Command{"Shares files with direct access.", "file [files...]", doMedia},
-	"mkdir":      Command{"Create directories.", "directory [directories...]", doMkdir},
-	"move":       Command{"Move file or directory.", "from_file to_file", doMove},
-	"put":        Command{"Upload a file.", "[-aes] [-k] [-r rev] file destination", doPut},
-	"restore":    Command{"Restore a file to a previous revision.", "path revision", doRestore},
-	"revisions":  Command{"Get revisions of files.", "[-l] file destination", doRevisions},
-	"search":     Command{"Search files.", "[-a] [-l] [-m limit] path \"query words\"", doSearch},
-	"shares":     Command{"Share files.", "[-o] file [files...]", doShare},
-	"thumbnails": Command{"Download a thumbnail.", "[-s size] [-f format] files destination", doThumbnails},
+var commands = map[string]command{
+	"copy":       command{"Copy file or directory.", "[-r] from_file to_file", doCopy},
+	"copyref":    command{"Get a copy reference of a file.", "file [files...]", doCopyRef},
+	"cput":       command{"Upload a file.", "[-aes] [-c chunksize] [-k] [-r rev] file destination", doChunkedPut},
+	"delta":      command{"Get modifications.", "[-c cursor] [-p path_prefix]", doDelta},
+	"delete":     command{"Remove file or directory (Warning this remove is recursive).", "file [files...]", doRm},
+	"get":        command{"Download a file.", "[-aes] [-c] [-r rev] file destination", doGet},
+	"list":       command{"List files from directories.", "[-a] [-d] [-l] file [files...]", doList},
+	"ldelta":     command{"Get modifications with timeout.", "[-t timeout] cursor", doLongPollDelta},
+	"media":      command{"Shares files with direct access.", "file [files...]", doMedia},
+	"mkdir":      command{"Create directories.", "directory [directories...]", doMkdir},
+	"move":       command{"Move file or directory.", "from_file to_file", doMove},
+	"put":        command{"Upload a file.", "[-aes] [-k] [-r rev] file destination", doPut},
+	"restore":    command{"Restore a file to a previous revision.", "path revision", doRestore},
+	"revisions":  command{"Get revisions of files.", "[-l] file destination", doRevisions},
+	"search":     command{"Search files.", "[-a] [-l] [-m limit] path \"query words\"", doSearch},
+	"shares":     command{"Share files.", "[-o] file [files...]", doShare},
+	"thumbnails": command{"Download a thumbnail.", "[-s size] [-f format] files destination", doThumbnails},
 }
 
 func usage(name string) {
@@ -637,22 +640,22 @@ func main() {
 	if len(os.Args) < 2 {
 		usage(os.Args[0])
 	}
-	Commands["help"] = Command{"Show this help message", "", doHelp}
+	commands["help"] = command{"Show this help message", "", doHelp}
 
 	db = dropbox.NewDropbox()
-	_ = config.Read(ConfigFilename)
-	db.SetAppInfo(AppKey, AppSecret)
+	_ = config.Read(configFilename)
+	db.SetAppInfo(appKey, appSecret)
 	if len(config.Token) == 0 {
 		if err = db.Auth(); err != nil {
 			fmt.Println(err)
 			return
 		}
 		config.Token = db.AccessToken()
-		config.Write(ConfigFilename)
+		config.Write(configFilename)
 	} else {
 		db.SetAccessToken(config.Token)
 	}
-	if cmd, ok := Commands[os.Args[1]]; ok {
+	if cmd, ok := commands[os.Args[1]]; ok {
 		if err = cmd.Func(&config, db, os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
@@ -661,6 +664,6 @@ func main() {
 		usage(os.Args[0])
 	}
 	if config.changed {
-		config.Write(ConfigFilename)
+		config.Write(configFilename)
 	}
 }
