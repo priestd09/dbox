@@ -467,7 +467,7 @@ func doRestore(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 
 func doRevisions(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 	var cl *flag.FlagSet
-	var entries *[]dropbox.Entry
+	var entries []dropbox.Entry
 	var entry dropbox.Entry
 	var err error
 	var lim int
@@ -481,7 +481,7 @@ func doRevisions(config *ConfigFile, db *dropbox.Dropbox, params []string) error
 			fmt.Printf("%s: %s\n", file, err)
 			continue
 		}
-		for _, entry = range *entries {
+		for _, entry = range entries {
 			if !entry.IsDeleted || entry.Bytes != 0 {
 				printEntryLong(&entry, 0)
 			}
@@ -504,7 +504,7 @@ func doRm(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 
 func doSearch(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 	var cl *flag.FlagSet
-	var entries *[]dropbox.Entry
+	var entries []dropbox.Entry
 	var entry dropbox.Entry
 	var err error
 	var all, long bool
@@ -526,9 +526,9 @@ func doSearch(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 	}
 	fmt.Printf("%s:\n", params[0])
 	if long {
-		printEntriesLong(*entries, len(params[0]))
+		printEntriesLong(entries, len(params[0]))
 	} else {
-		for _, entry = range *entries {
+		for _, entry = range entries {
 			printEntry(&entry, len(params[0]))
 		}
 	}
