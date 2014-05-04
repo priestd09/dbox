@@ -36,6 +36,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/stacktic/dropbox"
 )
@@ -101,6 +102,7 @@ func printEntry(entry *dropbox.Entry, prefixlen int) {
 
 func printEntryLong(entry *dropbox.Entry, prefixlen int) {
 	var buffer bytes.Buffer
+	var entryTime time.Time
 
 	if prefixlen != 0 && entry.Path[prefixlen] == '/' {
 		prefixlen++
@@ -109,7 +111,16 @@ func printEntryLong(entry *dropbox.Entry, prefixlen int) {
 	if entry.IsDir && entry.Path != "/" {
 		buffer.WriteByte('/')
 	}
-	buffer.WriteString(fmt.Sprintf("\t%s\t%s\t%s", entry.Size, entry.Modified, entry.Revision))
+	buffer.WriteString(fmt.Sprintf("\t%s\t", entry.Size))
+
+	entryTime = time.Time(entry.Modified)
+	if !entryTime.IsZero() {
+		buffer.WriteString(fmt.Sprintf("%s\t", entryTime.Format(dropbox.DateFormat)))
+	} else {
+		buffer.WriteString(fmt.Sprintf("%*s\t", len(dropbox.DateFormat), ""))
+	}
+
+	buffer.WriteString(fmt.Sprintf("%s", entry.Revision))
 	if entry.IsDeleted {
 		buffer.WriteString("\t[deleted]")
 	}
@@ -117,9 +128,10 @@ func printEntryLong(entry *dropbox.Entry, prefixlen int) {
 }
 
 func printEntriesLong(entries []dropbox.Entry, prefixlen int) {
-	var psize, ssize, msize, rsize int
+	var psize, ssize, rsize int
 	var i int
 	var buffer bytes.Buffer
+	var entryTime time.Time
 
 	if prefixlen != 0 && entries[0].Path[prefixlen] == '/' {
 		prefixlen++
@@ -131,9 +143,6 @@ func printEntriesLong(entries []dropbox.Entry, prefixlen int) {
 		if len(entries[i].Size) > ssize {
 			ssize = len(entries[i].Size)
 		}
-		if len(entries[i].Modified) > msize {
-			msize = len(entries[i].Modified)
-		}
 		if len(entries[i].Revision) > rsize {
 			rsize = len(entries[i].Revision)
 		}
@@ -141,10 +150,19 @@ func printEntriesLong(entries []dropbox.Entry, prefixlen int) {
 	psize = psize + 1 - prefixlen
 	for i = range entries {
 		name := entries[i].Path[prefixlen:]
-		if entries[i].IsDir {
+		if entries[i].IsDir && name != "/" {
 			name += "/"
 		}
-		buffer.WriteString(fmt.Sprintf("%-*s\t%-*s\t%-*s\t%-*s", psize, name, ssize, entries[i].Size, msize, entries[i].Modified, rsize, entries[i].Revision))
+		buffer.WriteString(fmt.Sprintf("%-*s\t%-*s\t", psize, name, ssize, entries[i].Size))
+
+		entryTime = time.Time(entries[i].Modified)
+		if !entryTime.IsZero() {
+			buffer.WriteString(fmt.Sprintf("%s\t", entryTime.Format(dropbox.DateFormat)))
+		} else {
+			buffer.WriteString(fmt.Sprintf("%*s\t", len(dropbox.DateFormat), ""))
+		}
+
+		buffer.WriteString(fmt.Sprintf("%-*s\t", rsize, entries[i].Revision))
 		if entries[i].IsDeleted {
 			buffer.WriteString("\t[deleted]")
 		}
