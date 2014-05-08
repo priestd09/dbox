@@ -36,6 +36,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/stacktic/dropbox"
@@ -83,15 +84,8 @@ type cmdHandler func(*ConfigFile, *dropbox.Dropbox, []string) error
 func printEntry(entry *dropbox.Entry, prefixlen int) {
 	var buffer bytes.Buffer
 
-	if prefixlen != 0 {
-		prefixlen--
-		for prefixlen < len(entry.Path) && entry.Path[prefixlen] != '/' {
-			prefixlen++
-		}
-		prefixlen++
-	}
 	buffer.WriteString(entry.Path[prefixlen:])
-	if entry.IsDir {
+	if entry.IsDir && entry.Path != "/" {
 		buffer.WriteByte('/')
 	}
 	if entry.IsDeleted {
@@ -100,13 +94,10 @@ func printEntry(entry *dropbox.Entry, prefixlen int) {
 	fmt.Println(buffer.String())
 }
 
-func printEntryLong(entry *dropbox.Entry, prefixlen int) {
+func entryToString(entry *dropbox.Entry, prefixlen int) string {
 	var buffer bytes.Buffer
 	var entryTime time.Time
 
-	if prefixlen != 0 && entry.Path[prefixlen] == '/' {
-		prefixlen++
-	}
 	buffer.WriteString(entry.Path[prefixlen:])
 	if entry.IsDir && entry.Path != "/" {
 		buffer.WriteByte('/')
@@ -115,60 +106,29 @@ func printEntryLong(entry *dropbox.Entry, prefixlen int) {
 
 	entryTime = time.Time(entry.Modified)
 	if !entryTime.IsZero() {
-		buffer.WriteString(fmt.Sprintf("%s\t", entryTime.Format(dropbox.DateFormat)))
-	} else {
-		buffer.WriteString(fmt.Sprintf("%*s\t", len(dropbox.DateFormat), ""))
+		buffer.WriteString(entryTime.Format(dropbox.DateFormat))
 	}
-
-	buffer.WriteString(fmt.Sprintf("%s", entry.Revision))
+	buffer.WriteByte('\t')
+	buffer.WriteString(entry.Revision)
 	if entry.IsDeleted {
 		buffer.WriteString("\t[deleted]")
 	}
-	fmt.Println(buffer.String())
+	return buffer.String()
+}
+
+func printEntryLong(entry *dropbox.Entry, prefixlen int) {
+	fmt.Println(entryToString(entry, prefixlen))
 }
 
 func printEntriesLong(entries []dropbox.Entry, prefixlen int) {
-	var psize, ssize, rsize int
-	var i int
-	var buffer bytes.Buffer
-	var entryTime time.Time
+	var w *tabwriter.Writer
+	var entry dropbox.Entry
 
-	if prefixlen != 0 && entries[0].Path[prefixlen] == '/' {
-		prefixlen++
+	w = tabwriter.NewWriter(os.Stdout, 0, 8, 1, '\t', 0)
+	for _, entry = range entries {
+		fmt.Fprintln(w, entryToString(&entry, prefixlen))
 	}
-	for i = range entries {
-		if len(entries[i].Path) > psize {
-			psize = len(entries[i].Path)
-		}
-		if len(entries[i].Size) > ssize {
-			ssize = len(entries[i].Size)
-		}
-		if len(entries[i].Revision) > rsize {
-			rsize = len(entries[i].Revision)
-		}
-	}
-	psize = psize + 1 - prefixlen
-	for i = range entries {
-		name := entries[i].Path[prefixlen:]
-		if entries[i].IsDir && name != "/" {
-			name += "/"
-		}
-		buffer.WriteString(fmt.Sprintf("%-*s\t%-*s\t", psize, name, ssize, entries[i].Size))
-
-		entryTime = time.Time(entries[i].Modified)
-		if !entryTime.IsZero() {
-			buffer.WriteString(fmt.Sprintf("%s\t", entryTime.Format(dropbox.DateFormat)))
-		} else {
-			buffer.WriteString(fmt.Sprintf("%*s\t", len(dropbox.DateFormat), ""))
-		}
-
-		buffer.WriteString(fmt.Sprintf("%-*s\t", rsize, entries[i].Revision))
-		if entries[i].IsDeleted {
-			buffer.WriteString("\t[deleted]")
-		}
-		fmt.Println(buffer.String())
-		buffer.Reset()
-	}
+	w.Flush()
 }
 
 func doChunkedPut(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
@@ -350,6 +310,9 @@ func doList(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 	}
 	for i, file := range files {
 		file = strings.TrimRight(file, "/")
+		if len(file) == 0 {
+			file = "/"
+		}
 		if entry, err = db.Metadata(file, !nochild, all, "", "", 0); err != nil {
 			fmt.Println(err)
 			continue
@@ -529,7 +492,8 @@ func doSearch(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 	var entry dropbox.Entry
 	var err error
 	var all, long bool
-	var nb int
+	var nb, prefixLen int
+	var sdir string
 
 	cl = flag.NewFlagSet("search", flag.ExitOnError)
 	cl.BoolVar(&all, "a", false, "Show deleted entries.")
@@ -542,15 +506,20 @@ func doSearch(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 		return fmt.Errorf("exactly two parameters needed for search (path and query)")
 	}
 
-	if entries, err = db.Search(strings.TrimRight(params[0], "/"), params[1], nb, all); err != nil {
+	sdir = strings.TrimRight(params[0], "/")
+	prefixLen = len(sdir) + 1
+	if len(sdir) == 0 {
+		sdir = "/"
+	}
+	if entries, err = db.Search(sdir, params[1], nb, all); err != nil {
 		return err
 	}
-	fmt.Printf("%s:\n", params[0])
+	fmt.Printf("%s:\n", sdir)
 	if long {
-		printEntriesLong(entries, len(params[0]))
+		printEntriesLong(entries, prefixLen)
 	} else {
 		for _, entry = range entries {
-			printEntry(&entry, len(params[0]))
+			printEntry(&entry, prefixLen)
 		}
 	}
 	return nil
