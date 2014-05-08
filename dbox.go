@@ -345,6 +345,9 @@ func doList(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 	}
 
 	files = cl.Args()
+	if len(files) == 0 {
+		files = []string{"/"}
+	}
 	for i, file := range files {
 		file = strings.TrimRight(file, "/")
 		if entry, err = db.Metadata(file, !nochild, all, "", "", 0); err != nil {
@@ -630,7 +633,7 @@ var commands = map[string]command{
 	"delta":      command{"Get modifications.", "[-c cursor] [-p path_prefix]", doDelta},
 	"delete":     command{"Remove file or directory (Warning this remove is recursive).", "file [files...]", doRm},
 	"get":        command{"Download a file.", "[-aes] [-c] [-r rev] file destination", doGet},
-	"list":       command{"List files from directories.", "[-a] [-d] [-l] file [files...]", doList},
+	"list":       command{"List files from directories.", "[-a] [-d] [-l] [files...]", doList},
 	"ldelta":     command{"Get modifications with timeout.", "[-t timeout] cursor", doLongPollDelta},
 	"media":      command{"Shares files with direct access.", "file [files...]", doMedia},
 	"mkdir":      command{"Create directories.", "directory [directories...]", doMkdir},
