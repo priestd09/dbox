@@ -33,9 +33,9 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
-	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -309,25 +309,26 @@ func doList(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 		files = []string{"/"}
 	}
 	for i, file := range files {
-		file = strings.TrimRight(file, "/")
-		if len(file) == 0 {
-			file = "/"
-		}
+		file = path.Clean("/" + file)
 		if entry, err = db.Metadata(file, !nochild, all, "", "", 0); err != nil {
 			fmt.Println(err)
 			continue
 		}
 		if entry.IsDir {
+			offset := len(file)
+			if file != "/" {
+				offset++
+			}
 			display(entry, 0)
 			if len(entry.Contents) == 0 {
 				continue
 			}
 			fmt.Println("")
 			if long {
-				printEntriesLong(entry.Contents, len(file))
+				printEntriesLong(entry.Contents, offset)
 			} else {
 				for _, subentry = range entry.Contents {
-					printEntry(&subentry, len(file))
+					printEntry(&subentry, offset)
 				}
 			}
 		} else {
@@ -506,10 +507,10 @@ func doSearch(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 		return fmt.Errorf("exactly two parameters needed for search (path and query)")
 	}
 
-	sdir = strings.TrimRight(params[0], "/")
-	prefixLen = len(sdir) + 1
-	if len(sdir) == 0 {
-		sdir = "/"
+	sdir = path.Clean("/" + params[0])
+	prefixLen = len(sdir)
+	if sdir != "/" {
+		prefixLen++
 	}
 	if entries, err = db.Search(sdir, params[1], nb, all); err != nil {
 		return err
