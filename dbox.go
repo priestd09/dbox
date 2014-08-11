@@ -375,7 +375,7 @@ func doMedia(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 			continue
 		}
 		fmt.Printf("%s is now available using %s, this link expires on %s\n",
-			file, link.URL, link.Expires)
+			file, link.URL, time.Time(link.Expires).Format(dropbox.DateFormat))
 	}
 	return nil
 }
@@ -543,7 +543,7 @@ func doShare(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 			continue
 		}
 		fmt.Printf("%s is now available using %s, this link expires on %s\n",
-			file, link.URL, link.Expires)
+			file, link.URL, time.Time(link.Expires).Format(dropbox.DateFormat))
 	}
 	return nil
 }
