@@ -572,12 +572,10 @@ func doThumbnails(config *ConfigFile, db *dropbox.Dropbox, params []string) erro
 	return nil
 }
 
-func doHelp(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
+func doHelp() error {
 	keys := make([]string, 0, len(commands))
 	for k := range commands {
-		if k != "help" {
-			keys = append(keys, k)
-		}
+		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
@@ -586,7 +584,7 @@ func doHelp(config *ConfigFile, db *dropbox.Dropbox, params []string) error {
 		fmt.Printf("%10s: %s\n", k, commands[k].desc)
 		fmt.Printf("            Usage: %s %s\n", k, commands[k].usage)
 	}
-	fmt.Printf("%10s: %s\n", "help", commands["help"].desc)
+	fmt.Printf("      help: Show this help message\n")
 	return nil
 }
 
@@ -631,14 +629,20 @@ func main() {
 	if len(os.Args) < 2 {
 		usage(os.Args[0])
 	}
-	commands["help"] = command{"Show this help message", "", doHelp}
-
+	if os.Args[1] == "help" {
+		doHelp()
+		return
+	}
 	db = dropbox.NewDropbox()
 	_ = config.Read(configFilename)
-	db.SetAppInfo(appKey, appSecret)
+	if err = db.SetAppInfo(appKey, appSecret); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
 	if len(config.Token) == 0 {
 		if err = db.Auth(); err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(os.Stderr, err)
 			return
 		}
 		config.Token = db.AccessToken()
