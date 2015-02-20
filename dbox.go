@@ -142,12 +142,14 @@ func doChunkedPut(config *ConfigFile, db *dropbox.Dropbox, params []string) erro
 	var fsize int
 	var reader io.ReadCloser
 	var fi os.FileInfo
+	var tries int
 
 	cl = flag.NewFlagSet("cput", flag.ExitOnError)
 	cl.BoolVar(&crypt, "aes", false, "Crypt file with AES before sending them.")
 	cl.IntVar(&chunksize, "c", dropbox.DefaultChunkSize, "Size of the chunk")
 	cl.BoolVar(&keep, "k", false, "Do not overwrite if exists.")
 	cl.StringVar(&rev, "r", "", "Revision of the file overwritten.")
+	cl.IntVar(&tries, "t", 1, "Number of tries.")
 	cl.Parse(params)
 
 	files = cl.Args()
@@ -176,10 +178,13 @@ func doChunkedPut(config *ConfigFile, db *dropbox.Dropbox, params []string) erro
 	} else {
 		reader = fd
 	}
-	if _, err = db.UploadByChunk(reader, chunksize, files[1], !keep, rev); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", files[0], err)
-	} else {
-		fmt.Printf("%s\n", files[1])
+	for i := 0; i < tries; i++ {
+		if _, err = db.UploadByChunk(reader, chunksize, files[1], !keep, rev); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", files[0], err)
+		} else {
+			fmt.Printf("%s\n", files[1])
+			break
+		}
 	}
 	return nil
 }
@@ -597,7 +602,7 @@ type command struct {
 var commands = map[string]command{
 	"copy":       command{"Copy file or directory.", "[-r] from_file to_file", doCopy},
 	"copyref":    command{"Get a copy reference of a file.", "file [files...]", doCopyRef},
-	"cput":       command{"Upload a file.", "[-aes] [-c chunksize] [-k] [-r rev] file destination", doChunkedPut},
+	"cput":       command{"Upload a file.", "[-aes] [-c chunksize] [-k] [-r rev] [-t trycount] file destination", doChunkedPut},
 	"delta":      command{"Get modifications.", "[-c cursor] [-p path_prefix]", doDelta},
 	"delete":     command{"Remove file or directory (Warning this remove is recursive).", "file [files...]", doRm},
 	"get":        command{"Download a file.", "[-aes] [-c] [-r rev] file destination", doGet},
