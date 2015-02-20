@@ -31,7 +31,7 @@ Usage
 	   copyref: Get a copy reference of a file.
 		    Usage: copyref file [files...]
 	      cput: Upload a file.
-		    Usage: cput [-aes] [-c chunksize] [-k] [-r rev] file destination
+		    Usage: cput [-aes] [-c chunksize] [-k] [-r rev] [-t trycount] file destination
 	    delete: Remove file or directory (Warning this remove is recursive).
 		    Usage: delete file [files...]
 	     delta: Get modifications.
